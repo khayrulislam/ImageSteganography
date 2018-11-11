@@ -1,0 +1,782 @@
+#include<iostream>
+#include<fstream>
+#include<vector>
+#include<cstring>
+#include<cmath>
+#include<cstdlib>
+#include<cstdio>
+
+using namespace std;
+
+struct header{
+	
+	char bmpSignature[2];
+	unsigned int totalFileSize;
+	unsigned int reserved;
+	unsigned int startPositionOfImagePixel;
+
+};
+
+struct headerInfo{
+	
+	unsigned int sizeOfInfoHeader;
+	unsigned int widthOfImagePixel;
+	unsigned int hightOfImagePixel;
+	unsigned short int numberOfPlanesInTheImage;
+	unsigned short int numberOfPixel;
+	unsigned int compressionType;
+	unsigned int sizeOfImage;
+	unsigned int horizontalResolutionInPixelsPerMeter;
+	unsigned int verticalResolutionInPixelsPerMeter;
+	unsigned int numberOfColorInImage;
+	unsigned int numberOfImportantColor;
+};
+
+int start,width,hight,end;
+char ***pixelArray,***hostPixelArray,***guestPixelArray;
+char *headerArray, *hostHeaderArray, *guestHeaderArray;
+char *padding,*hostPadding,*guestPadding;
+
+void printTheHeaderInfo(header bmpHeader,headerInfo bmpHeaderInfo){
+	
+	header tempHeader = bmpHeader;
+	headerInfo tempHeaderInfo = bmpHeaderInfo;
+	
+	cout << "The header of the BMP file"<<endl;
+
+	cout << "BMP_Signature : "<< tempHeader.bmpSignature[0] << tempHeader.bmpSignature[1] <<endl;
+	cout << "Total File Size : "<< tempHeader.totalFileSize <<endl;
+	cout << "Reserved : "<<  tempHeader.reserved << endl;
+	cout << "StartPositionOfImagePixel : "<< tempHeader.startPositionOfImagePixel <<endl;
+		
+	cout << "\n\nThe information header of the BMP file."<<endl;
+	
+	cout << "SizeOfInfoHeader : "<< tempHeaderInfo.sizeOfInfoHeader <<endl;
+	cout << "WidthOfImagePixel : "<< tempHeaderInfo.widthOfImagePixel  <<endl; 
+	cout << "HightOfImagePixel : "<<  tempHeaderInfo.hightOfImagePixel <<endl;
+	cout << "NumberOfPlanesInTheImage : "<<  tempHeaderInfo.numberOfPlanesInTheImage <<endl;
+	cout << "NumberOfPixel : "<<  tempHeaderInfo.numberOfPixel  <<endl;
+	cout << "CompressionType : "<< tempHeaderInfo.compressionType <<endl;
+	cout << "SizeOfImage : "<< tempHeaderInfo.sizeOfImage  <<endl;
+	cout << "HorizontalResolutionInPixelsPerMeter : "<< tempHeaderInfo.horizontalResolutionInPixelsPerMeter <<endl;
+	
+	cout << "VerticalResolutionInPixelsPerMeter : "<< tempHeaderInfo.verticalResolutionInPixelsPerMeter <<endl;
+	cout << "NumberOfColorInImage : "<< tempHeaderInfo.numberOfColorInImage <<endl;
+	cout << "NumberOfImportantColor : "<< tempHeaderInfo.numberOfImportantColor <<endl;
+	
+}
+
+char*** create3DArray(int imageHight,int imageWidth,int imageRGBNumber){
+	
+	char ***temp3DArray;
+	temp3DArray = new char**[imageHight];
+	
+	for(int i=0;i<imageHight;i++){
+		temp3DArray[i] = new char*[imageWidth];
+		for(int j=0;j<imageWidth;j++){
+			temp3DArray[i][j] = new char[imageRGBNumber];
+		}
+	}	
+	return temp3DArray;
+}
+
+void initializeH_W_R(int &iHight,int &iWidth,int &iRGBNumber,headerInfo bmpHeaderInfo){
+	
+	iHight = bmpHeaderInfo.hightOfImagePixel;
+	iWidth = bmpHeaderInfo.widthOfImagePixel;
+	iRGBNumber = bmpHeaderInfo.numberOfPixel /8;	
+}
+
+char*** storeThePixelValueIn3DArray(ifstream &iFile,headerInfo bmpHeaderInfo){
+	
+	int imageHight,imageWidth,imageRGBNumber;
+	char ***temp3DArray;
+	
+	initializeH_W_R(imageHight,imageWidth,imageRGBNumber,bmpHeaderInfo);
+	
+	temp3DArray = create3DArray(imageHight,imageWidth,imageRGBNumber);
+	
+	for(int i=0;i<imageHight;i++){
+		for(int j=0;j<imageWidth;j++){
+			for(int k=0;k<imageRGBNumber;k++){
+				iFile.read((char*)(&temp3DArray[i][j][k]),1);
+				//else if(x==2) iFile.read((char*)(&temp3DArray[i][j][k]),1);
+			}
+		}
+	}
+	return temp3DArray;
+}
+
+headerInfo storeTheHeaderInformationOfTheImage(){
+	
+	headerInfo tempHeaderInfo;
+	
+	tempHeaderInfo.sizeOfInfoHeader = *((unsigned int*)(headerArray+14));
+	tempHeaderInfo.widthOfImagePixel = *((unsigned int*)(headerArray+18));
+	tempHeaderInfo.hightOfImagePixel = *((unsigned int*)(headerArray+22));
+	tempHeaderInfo.numberOfPlanesInTheImage = *((unsigned int*)(headerArray+26));
+	tempHeaderInfo.numberOfPixel = *((unsigned int*)(headerArray+28));
+	tempHeaderInfo.compressionType = *((unsigned int*)(headerArray+30));
+	tempHeaderInfo.sizeOfImage = *((unsigned int*)(headerArray+34));
+	tempHeaderInfo.horizontalResolutionInPixelsPerMeter = *((unsigned int*)(headerArray+38));	
+	tempHeaderInfo.verticalResolutionInPixelsPerMeter = *((unsigned int*)(headerArray+42));		
+	tempHeaderInfo.numberOfColorInImage = *((unsigned int*)(headerArray+46));
+	tempHeaderInfo.numberOfImportantColor = *((unsigned int*)(headerArray+50));
+
+	return tempHeaderInfo;
+}
+
+header storeTheHeaderOfTheImage(){
+	
+	header tempHeader;
+	
+	tempHeader.bmpSignature[0]  = *((unsigned char*)(headerArray));
+	tempHeader.bmpSignature[1]  = *((unsigned char*)(headerArray+1));
+	tempHeader.totalFileSize = *((unsigned int*)(headerArray+2));
+	tempHeader.reserved = *((unsigned int*)(headerArray+6)); 
+	tempHeader.startPositionOfImagePixel = *((unsigned int*)(headerArray+10));
+
+	return tempHeader;
+}
+
+char* create1DArray(int arrayLength){
+	
+	char *temp1DArray;
+	temp1DArray = new char[arrayLength];
+
+	return 	temp1DArray;
+}
+
+char* storeTheHeaderIn1DArray(ifstream &iFile,int arrayLength){
+	
+	char *temp1DArray;
+	temp1DArray = create1DArray(arrayLength);
+	iFile.read(temp1DArray,arrayLength);
+
+	return temp1DArray;	
+}
+
+bool openTheImageFile(header &bmpHeader,headerInfo &bmpHeaderInfo,string input){
+	
+	int restOfTheHeaderSize;
+	ifstream iFile;
+		
+	iFile.open(input.c_str(), ios::binary | ios::in);
+	
+	if(iFile.is_open()){
+		
+		headerArray = storeTheHeaderIn1DArray(iFile,54);
+		bmpHeader = storeTheHeaderOfTheImage();		
+		bmpHeaderInfo = storeTheHeaderInformationOfTheImage();
+		
+		restOfTheHeaderSize = bmpHeader.startPositionOfImagePixel - 54;
+		
+		padding = storeTheHeaderIn1DArray(iFile,restOfTheHeaderSize);
+		pixelArray = storeThePixelValueIn3DArray(iFile,bmpHeaderInfo);
+		
+		iFile.close();			
+	}	
+	else {
+		cout <<"can't open the input file"<<endl;
+		return false;
+	}	
+	return true;
+}
+
+bool isValidInputImageFileName(string input){
+	
+	string str = ".bmp";	
+	int y = input.find(str);
+	if(y>0 && y==input.length()-4) return true;
+	else return false;
+}
+
+
+string takeInputImageNameFromUser(string name){
+	
+	string imageName;
+	while(true){
+		cout << "Enter the name of the "<<name<<" image file : ";
+		cin >> imageName;
+		cout << endl;	
+		if(isValidInputImageFileName(imageName)) return imageName;
+		else cout << "You enter wrong image file name."<<endl<<endl;
+	}
+}
+
+int selectChoise(){
+	
+	string choice;
+	
+	cout <<"Enter 1 for encode secret text into the image."<<endl;
+	cout <<"Enter 2 for encode secret image into the image."<<endl;
+	cout <<"Enter 3 for decode the secret message."<<endl<<endl;
+	
+	while(true){
+		cout <<"Enter your choise : ";
+		cin >> choice;
+			
+		if(choice=="1") return 1;
+		else if (choice=="2") return 2;
+		else if (choice=="3") return 3;	
+		
+		else cout<<"You enter wrong choise!!!\nSelect your choise between 1 to 3."<<endl;	
+	}
+}
+
+void insertPasswordIntoImage(string password){
+	
+	int j = 71;
+	for(int i=j;i<79;i++){
+		hostPadding[i] = '*';
+	}
+	for(int i=0;i<password.length();i++){
+		hostPadding[j] = password[i];
+		j++;
+	}
+}
+
+unsigned char update(unsigned char x,bool z){
+	
+	if(z) x = x | 0x01;
+	else {
+		x = x >> 1;
+		x = x << 1;
+	}	
+	return x;	
+}
+
+void insertThePositionIntoTheImage(){
+	
+	int j=1,value;
+	int arr[4] = {start,width,hight,end};
+	
+	for(int i=0;i<4;i++){
+		
+		value = arr[i];
+		hostPadding[j] = value & 0Xff;
+		j++;
+		hostPadding[j] = (value >> 8) & 0Xff;
+		j++;
+		hostPadding[j] = (value >> 16) & 0Xff;
+		j++;
+		hostPadding[j] = (value >> 24) & 0Xff;
+		j++;				
+	}	
+}
+
+void findThePosition(int totalSize,int imageHight,int imageWidth){
+
+	int temp,nrow,row,col;
+	double a,b,c;
+		
+	temp = ( (sqrt(totalSize/2)) ) +1;
+	a = totalSize;
+	b = temp;
+	c = ceil( a / (b*2));
+	nrow = c;
+	
+	row = rand() % (imageHight-temp);
+	col = rand() % (imageWidth-temp);
+	
+	start = row*imageWidth + col;
+	width = col + temp;
+	hight = row + nrow;
+	end = col + ( totalSize % (temp*2)) / 2 ;		
+}
+
+void insertTheBinaryIntoTheImagePixel(bool *array,int totalSize,int imageHight,int imageWidth){
+	
+	int temp = 0,row,col;
+	
+	findThePosition(totalSize,imageHight,imageWidth);
+	insertThePositionIntoTheImage();
+		
+	row = start/imageWidth;
+	col = start%imageWidth;
+
+	for(int i=row;i<hight;i++){
+		for(int j=col;j<width;j++){
+		
+			hostPixelArray[i][j][0] = update(hostPixelArray[i][j][0],array[temp]);		
+			hostPixelArray[i][j][2] = update(hostPixelArray[i][j][2],array[temp+1]);
+			temp+=2;
+			//if(i==hight-1 && j==end-1) break;
+			if(temp==totalSize) break;
+		}
+	}
+}
+
+
+bool *createCharToBinary(int x){
+
+	int i=0;
+ 	bool *binaryArray;	
+	binaryArray = new bool [8];
+	memset(binaryArray,false,8);
+	
+	while(i<8){
+		
+		if(x%2==1) binaryArray[i]=true;
+		x /=2;
+		i++;
+	}	
+	return binaryArray;
+}
+
+unsigned char changeTheData(char a,char b){
+	return a^b; 
+}
+
+bool* createBinaryArrayFromCharacterVector(vector <char> charVector,string password){
+
+	int l=0,k;
+	bool *array,*binaryArray;
+	 
+	array = new bool[charVector.size()*8];
+	
+	for(int i=0;i<charVector.size();i++){
+		
+		binaryArray = createCharToBinary(changeTheData(charVector[i],password[i%password.length()]) );
+		k=0;
+		while(k!=8){
+			array[l] = binaryArray[k];	
+			k++;
+			l++;
+		}	
+	}	
+	return array;	
+}
+
+vector <char> readAllTheCharOfTheTxtFile(string fileName){
+
+	ifstream iFile;
+	string str;
+	vector <char> vec;	
+	iFile.open(fileName.c_str());
+	
+	if (iFile.is_open()){
+		
+		cout << "Successfully open the text file."<<endl;
+		while(getline(iFile,str)){
+	
+			for(int k=0;k<str.length();k++) vec.push_back(str[k]);		
+			vec.push_back('\n');
+		}		
+		iFile.close();
+	}
+	
+	else {
+		cout <<"can't open the text file."<< endl;	
+	}
+	return vec;		
+}
+
+void insertingTxtIntoImage(string fileName,int imageHight,int imageWidth,string password){
+	
+	int totalSize;
+	bool *array;
+	vector <char> charVector;
+	
+	hostPadding[0]=0x0f;
+	charVector = readAllTheCharOfTheTxtFile(fileName);	
+	totalSize = charVector.size()*8;	
+	array = createBinaryArrayFromCharacterVector(charVector,password);	
+	insertTheBinaryIntoTheImagePixel(array,totalSize,imageHight,imageWidth);
+}
+
+string takePasswordFromUser(){
+	
+	string password;
+
+	while(true){
+		
+		cout << "Enter password : ";
+		cin >> password;
+		if(password.length()<=8 && password.length()>0){
+			return password;
+		}
+		else{
+			cout<<endl<<"Password must be within 8 character."<<endl;
+		}
+	}
+}
+
+bool isValidInputTxtFileName(string input){
+	
+	string str = ".txt";	
+	int y = input.find(str);
+	if(y>0 && y==input.length()-4) return true;
+	else return false;
+}
+
+string txtFileInputFromUser(int imageSize){
+	
+	string input;
+	
+	cout <<"The text file must be within "<< (imageSize*2)/8 << " characters.\n"<<endl;
+	
+	while(true){
+		
+		cout << "Enter the name of txt file :";	
+		cin >> input;
+		if(isValidInputTxtFileName(input)) return input;
+		
+		else cout << "You enter wrong txt file name!!!"<<endl;				
+	}
+}
+
+void secretTxtFileProcessing(headerInfo bmpHeaderInfo){
+	
+	string txtFileName,password;
+	
+	txtFileName = txtFileInputFromUser(bmpHeaderInfo.sizeOfImage);
+	password = takePasswordFromUser();
+	insertingTxtIntoImage(txtFileName,bmpHeaderInfo.hightOfImagePixel,bmpHeaderInfo.widthOfImagePixel,password);
+	insertPasswordIntoImage(password);
+}/////////////
+
+bool* pixelToBinary(headerInfo bmpHeaderInfo2,int totalSize,string password){
+	
+	int imageHight,imageWidth,imageRGBNumber,l=0,m=0,p=0;
+	bool *array,*binaryArray;
+
+	initializeH_W_R(imageHight,imageWidth,imageRGBNumber,bmpHeaderInfo2);
+	array = new bool[totalSize];
+	
+	for(int i=0;i<84;i++){
+		binaryArray = createCharToBinary(changeTheData(guestPadding[i],password[i%password.length()]));
+		m=0;
+		while(m!=8){
+			array[l] = binaryArray[m];	
+			m++;
+			l++;
+		}
+	}
+	
+	for(int i=0;i<imageHight;i++){
+		for(int j=0;j<imageWidth;j++){
+			for(int k=0;k<imageRGBNumber;k++){
+				binaryArray = createCharToBinary(changeTheData(guestPixelArray[i][j][k],password[p%password.length()]));
+				m=0;
+				while(m!=8){
+					array[l] = binaryArray[m];	
+					m++;
+					l++;
+				}
+				p++;
+			}
+		}
+	}	
+	return array;	
+}
+
+void invisibleInserting(headerInfo bmpHeaderInfo,headerInfo bmpHeaderInfo2,string password){
+	
+	int imageHight,imageWidth,imageRGBNumber,totalSize,j=0;
+	bool *array;
+	
+	initializeH_W_R(imageHight,imageWidth,imageRGBNumber,bmpHeaderInfo);
+	
+	totalSize = (bmpHeaderInfo2.sizeOfImage*8)+ (84*8);
+	
+	array = pixelToBinary(bmpHeaderInfo2,totalSize,password);
+	hostPadding[0]=0xf0;
+	insertTheBinaryIntoTheImagePixel(array,totalSize,imageHight,imageWidth);
+	
+	for(int i=17;i<17+54;i++){
+		hostPadding[i] =changeTheData(guestHeaderArray[j],password[j%password.length()] );	
+		j++;
+	}
+	insertPasswordIntoImage(password);		
+}
+
+void visbleMark(headerInfo bmpHeaderInfo,headerInfo bmpHeaderInfo2){
+	
+	int imageHight,imageWidth,imageHight2,imageWidth2,imageRGBNumber;
+
+	initializeH_W_R(imageHight,imageWidth,imageRGBNumber,bmpHeaderInfo);
+	
+	imageHight2 = bmpHeaderInfo2.hightOfImagePixel;
+	imageWidth2 = bmpHeaderInfo2.widthOfImagePixel;
+	
+	double a = 0.35,f,x,fx;
+	
+	int startHight,startWidth,h=0,w=0;
+	
+	startHight = (imageHight - imageHight2)/2;
+	startWidth = (imageWidth - imageWidth2)/2;
+	
+	for(int i=startHight;i<(imageHight2+startHight);i++){
+		w=0;
+		for(int j=startWidth;j<(imageWidth2+startWidth);j++){
+			
+			for(int k=0;k<imageRGBNumber;k++){
+				
+				f = (unsigned char)hostPixelArray[i][j][k];
+				x = (unsigned char)guestPixelArray[h][w][k];
+				fx = (1-a)*f+ a*x;
+				hostPixelArray[i][j][k] = (unsigned char) fx;				
+			}	
+			w++;
+		}
+		h++;				
+	}		
+}
+
+int selectOption(){
+	
+	string selected;
+	cout << "Enter 1 for visible mark"<<endl;
+	cout << "Enter 2 for invisible mark" << endl<<endl;
+
+	while(true){
+		cout <<"Enter your choise : ";
+		cin >> selected;
+
+		if(selected =="1") return 1;
+		else if(selected =="2") return 2;
+		else cout<<"You enter wrong choise!!!"<<endl;
+	}	
+}
+
+void secretImageFileProcessing(headerInfo bmpHeaderInfo){
+	
+	int choise,totalCapacity,totalBitToInsert;
+	string insertingImage,password;
+	header bmpHeader2;
+	headerInfo bmpHeaderInfo2;
+	insertingImage = takeInputImageNameFromUser("secret");
+	
+	if(openTheImageFile(bmpHeader2,bmpHeaderInfo2,insertingImage)){
+		
+		guestHeaderArray = headerArray;
+		guestPadding = padding;
+		guestPixelArray = pixelArray;
+			
+		totalCapacity = bmpHeaderInfo.hightOfImagePixel * bmpHeaderInfo.widthOfImagePixel * 2;
+		totalBitToInsert = (bmpHeaderInfo2.sizeOfImage + 84)* 8;
+		
+		if(totalCapacity < totalBitToInsert){
+			cout << "Sorry it is not possible to insert "<< insertingImage <<" image"<<endl;
+			return ;
+		}
+		password = takePasswordFromUser();
+		choise = selectOption();
+		
+		if(choise == 1){
+			visbleMark(bmpHeaderInfo,bmpHeaderInfo2);
+		}
+		else if(choise == 2){
+			invisibleInserting(bmpHeaderInfo,bmpHeaderInfo2,password);
+		}		
+	}	
+}////////////////////
+
+int createBinaryToInteger(bool *binaryArray,int start,int end){
+	
+	int integerValue=0;	
+	for(int i=start;i<end;i++){
+		
+		if(binaryArray[i]) integerValue += 1 << i%8;
+	}
+	return integerValue;
+}
+
+void printTheImage(bool *array,int totalSize,string password){
+	
+	int j=0;
+	char *outputPixel;
+	outputPixel = new char[totalSize/8];
+		
+	for(int i=0;i<totalSize;i=i+8){	
+		outputPixel[j] = changeTheData (password[j%password.length()],createBinaryToInteger(array,i,i+8));
+		j++;			
+	}
+	
+	j = 17;
+	guestHeaderArray = new char[54];
+	for(int i=0;i<54;i++){
+		guestHeaderArray[i] =changeTheData(hostPadding[j] , password[i%password.length()]) ;
+		j++;	
+	}
+	ofstream oFile;
+	oFile.open("secret.bmp", ios::binary | ios::out);
+	
+	if(oFile.is_open()){	
+		oFile.write(guestHeaderArray,54);
+		//oFile.write(hostPadding,80);
+		oFile.write(outputPixel,totalSize/8);
+		oFile.close();
+	}
+	else cout<<"can't open secret.bmp"<<endl;	
+}
+
+void printTheText(bool *array,int totalSize,string password){
+	
+	unsigned char ch;
+	int j=0;	
+	for(int i=0;i<totalSize;i=i+8){
+		
+		ch = (unsigned char) (password[j%password.length()] ^ (unsigned char)createBinaryToInteger(array,i,i+8) );
+		cout << ch ;
+		j++;
+	}
+}
+
+bool extractTheBinaryBit(unsigned char ch){
+
+	if((ch & 0x01)== 0x00) return false;
+	else return true;
+}
+
+void extractThePosition(){
+	
+	start = *(unsigned int*)(hostPadding+1);
+	width = *(unsigned int*)(hostPadding+5);
+	hight = *(unsigned int*)(hostPadding+9);
+	end = *(unsigned int*)(hostPadding+13);	
+}
+
+bool* extractDataFromImage(int imageWidth,int &total){
+	
+	unsigned char ch1,ch2;
+	int temp=0,row,col;
+	bool *array;
+
+	extractThePosition();	
+	
+	row = start/imageWidth;
+	col = start%imageWidth;
+	
+	total = ((width-col)*(hight-row)*2) - ((width-col) - (end-col))*2;
+	
+	array = new bool[total];
+	
+	for(int i=row;i<hight;i++){
+		for(int j=col;j<width;j++){
+			
+			array[temp] = extractTheBinaryBit( hostPixelArray[i][j][0] );
+			array[temp+1] = extractTheBinaryBit( hostPixelArray[i][j][2] );
+			temp +=2;
+			if(temp==total) break;
+		}
+	}	
+	return array;		
+}
+
+bool checkPassword(string password){
+	
+	string temp = "";
+	for(int i=71;i<79;i++){
+		
+		if(hostPadding[i]=='*') break;
+		else{
+			temp += hostPadding[i];
+		}
+	}	
+	if(temp==password) return true;
+	else return false;	
+}
+
+int isMessageEncoded(){
+	
+	if((unsigned char)hostPadding[0]==0x0f) return 1;
+	else if((unsigned char)hostPadding[0] == 0Xf0) return 2;
+	else return 0;	
+}
+
+void decodeTheMessage(int imageHight,int imageWidth){
+	
+	int check,total;
+	string password;
+	bool *array;	
+	check = isMessageEncoded();
+	
+	if(check == 0){
+		cout << "There is not any encoded secret message in the image"<<endl;
+		return ;
+	}
+	password = takePasswordFromUser();
+	
+	if(checkPassword(password)){
+	
+		array = extractDataFromImage(imageWidth,total);
+		if(check == 1){			   
+			printTheText(array,total,password);
+		}
+		else if(check == 2){
+			printTheImage(array,total,password);
+		}
+	}
+	else{
+		cout <<"You enter wrong password !!!"<<endl;
+	}		
+}
+
+void output(string name,headerInfo bmpHeaderInfo){
+
+	int imageHight,imageWidth,imageRGBNumber;
+
+	initializeH_W_R(imageHight,imageWidth,imageRGBNumber,bmpHeaderInfo);
+	
+	ofstream oFile;
+	oFile.open(name.c_str(), ios::binary | ios::out);
+	
+	if(oFile.is_open()){
+		
+		oFile.write(hostHeaderArray,54);
+		oFile.write(hostPadding,84);
+		
+		for(int i=0;i<imageHight;i++){
+			for(int j=0;j<imageWidth;j++){
+				for(int k=0;k<imageRGBNumber;k++){
+					oFile.write((char*)(&hostPixelArray[i][j][k]),1);
+				}
+			}
+		}	
+		oFile.close();
+	}
+	else cout <<"can't open "<<name<<" file."<<endl;
+}
+
+void processTheImage(){
+
+	int choise;
+	string hostImageName;
+	header bmpHeader,bmpHeader2;
+	headerInfo bmpHeaderInfo,bmpHeaderInfo2;	
+	hostImageName = takeInputImageNameFromUser("cover");
+	
+	if(openTheImageFile(bmpHeader,bmpHeaderInfo,hostImageName)){
+		
+		hostHeaderArray = headerArray;
+		hostPadding = padding;
+		hostPixelArray = pixelArray;		
+		cout << "successfully open the host image file."<<endl<<endl;
+		
+		//printTheHeaderInfo(bmpHeader, bmpHeaderInfo);
+		//output("first.bmp",bmpHeaderInfo);
+		choise = selectChoise();
+		if(choise== 1) {			
+			secretTxtFileProcessing(bmpHeaderInfo);	
+		}
+		else if (choise== 2){
+			secretImageFileProcessing(bmpHeaderInfo);
+		}	
+		else if(choise == 3){
+			decodeTheMessage(bmpHeaderInfo.hightOfImagePixel,bmpHeaderInfo.widthOfImagePixel);
+		}
+		if(choise==2 || choise==1) output("stegoImage.bmp",bmpHeaderInfo);	
+		cout << "\nfinish"<<endl;
+	}
+	else cout << "can't open" << endl;	
+}	
+
+int main (){
+	
+	processTheImage();
+
+return 0;
+}
+

@@ -1,0 +1,48 @@
+1. Introduction
+Since the rise of the Internet one of the most important factors of
+information technology and communication has been the security of
+information. Sometimes it is unable to keep the contents of a message
+secret, it may also be necessary to keep the existence of the message
+secret. The technique used to implement this, is called steganography.
+Steganography is the art and science of invisible communication. It helps to
+hide information in ways that prevent the detection of hidden messages. The
+word steganography comes from the Greek words "stegos" meaning "cover"
+and "grafia" meaning "writing" defining it as "covered writing". In image
+steganography the information is hidden exclusively in images. Today
+steganography is mostly used on computers with digital data communication
+through internet. Cryptography is used to hide secret information from other.
+Steganography
+differs
+from
+cryptography
+in
+the
+sense
+that
+where
+cryptography focuses on keeping the contents of a message secret,
+steganography focuses on keeping the existence of a message secret.
+Steganography and cryptography are both ways to protect information from
+third
+party
+access.
+Other
+technologies
+that
+are
+closely
+related
+to
+steganography is watermarking. In watermarking all of the instances of an
+object are "marked" in the same way. The kind of information hidden in
+objects when using watermarking is usually a signature to signify origin or
+ownership for the purpose of copyright protection. In watermarking the fact
+that information is hidden inside the files may be public knowledge –
+sometimes
+it
+may
+even
+be
+visible
+–
+imperceptibility of the information is crucial.
